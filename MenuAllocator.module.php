@@ -1,93 +1,66 @@
-<?php namespace ProcessWire; 
+<?php namespace ProcessWire;
 
-class MenuAllocator extends WireData implements Module, ConfigurableModule {
+class MenuAllocator extends WireData implements Module {
+
     public static function getModuleInfo() {
         return array(
             'title' => 'Menu Allocator',
             'version' => 1,
-            'summary' => 'A module to add a custom field to page edit forms.',
+            'summary' => 'A module to allocate menus to pages.',
             'autoload' => 'template=admin',
         );
     }
 
-    
-    public function __construct() {
-    
-        $menuAllocatorSettings = wire('modules')->getConfig($this);
-        foreach ($menuAllocatorSettings as $key => $value) {
-            $this->$key = $value;
-        }
-    
-    }
-
-
     public function init() {
-        // Add a hook to build the page edit form
-        $this->addHookAfter('ProcessPageEdit::buildForm', $this, 'addCustomFieldToPageEditForm');
+        // Add a hook to build the page edit form content
+        $this->addHookAfter('ProcessPageEdit::buildFormContent', $this, 'addCustomFieldToPageEditForm');
         
-        // Add a hook to save the field value when the page is saved
-        $this->addHookAfter('Pages::saveReady', $this, 'saveCustomField');
+        // Add a hook to process the form input when the page is saved
+        $this->addHookAfter('ProcessPageEdit::processInput', $this, 'saveCustomField');
     }
 
-    
     public function addCustomFieldToPageEditForm(HookEvent $event) {
+        $form = $event->return;
 
-        $this->message('this is addCustomFieldToPageEditForm');
-
-        $page = $event->object->getPage();
-    
         // Check if this is a frontend page (you can define your criteria here)
-        if (strpos($page->path, '/admin/') !== 0) {
-            // Get the selected menu names from the module's settings
-
-            $menuNames = $this->menus;
-
-            if ($menuNames == '') return;
-
-            $menuNames = explode(' ', $menuNames);
+        if (strpos($this->input->url, '/admin/') !== false) {
+            // Create the custom field as an InputfieldText
+            $field = $this->modules->get('InputfieldText');
+            $field->name = 'custom_text_field'; // Use a different name for rendering
+            $field->label = 'Custom Field for Display'; // Different label for rendering
+            $field->description = 'Enter a custom value for this page (display only).';
     
-            // Create the custom field as an InputfieldAsmSelect
-            $field = $this->modules->get('InputfieldCheckboxes');
-            $field->name = 'menus';
-            $field->label = 'Menus';
-            $field->description = 'Select menu names for the page.';
-    
-            // Add menu options based on module configuration
-            foreach ($menuNames as $menuName) {
-                $field->addOption($menuName, $menuName);
+            // Check if the page has a custom_text_field property and use it as the field's value
+            if ($this->input->post->custom_text_field_property) {
+                $field->value = $this->input->post->custom_text_field_property; // Use the property as the value
             }
     
             // Add the field to the page edit form
-            $form = $event->return;
-            $form->insertBefore($field, $form->getChildByName('title')); // Adjust the position as needed
+            $form->add($field);
         }
     }
-
 
     public function saveCustomField(HookEvent $event) {
-        $page = $event->arguments[0];
+        $form = $event->arguments(0);
     
-        // Check if this is a frontend page (you can define your criteria here)
-        if (strpos($page->path, '/admin/') !== 0) {
-            // Get the field value from the input
-            $fieldValue = $this->input->post->menus; // Use the correct field name
+        // We only care about the top-level form
+        $level = $event->arguments(1);
+        if ($level) return;
     
-            $this->message('Field value received: ' . print_r($fieldValue, true));
+        // Get the custom_text_field value from the form input
+        $fieldValue = $this->input->post->custom_text_field; // Use the correct field name
     
-            // Create the dynamic field if it doesn't exist
-            if (!$page->hasField('menus')) {
-                $field = $this->wire('fields')->get('menus'); // Adjust 'menus' to your field settings
-                $field->type = $this->modules->get('FieldtypeText'); // Adjust the field type as needed
-                $page->fields->add($field);
-            }
+        // Debugging: Check if the hook is triggered and if the field value is retrieved correctly
+        wire('log')->save('my-log-file.log', "Hook triggered. Field Value: $fieldValue");
     
-            // Save the field value to the page
-            $page->set('menus', $fieldValue); // Use the correct field name
+        // Check if we have a valid page object
+        if ($this->input->page) {
+            // Debugging: Check if the page object is valid
+            wire('log')->save('my-log-file.log', "Page object is valid.");
+    
+            // Save the field value as a property on the page with a different name
+            $this->input->page->set('custom_text_field_property', $fieldValue); // Use the different property name
         }
     }
-            
-    
-                  
+        
 }
-
-?>
