@@ -32,12 +32,10 @@ You can retrieve pages associated with a specific menu using the `getPageArray` 
 
 ```php
 // Example usage to retrieve pages associated with the 'top' menu
-$topMenu = 'top';
-$topMenuPages = $modules->get('MenuAllocator')->getPageArray($topMenu);
+$topMenuPages = $modules->get('MenuAllocator')->getPageArray('top');
 
 // Example usage to retrieve pages associated with the 'footer' menu
-$footerMenu = 'footer';
-$footerMenuPages = $modules->get('MenuAllocator')->getPageArray($footerMenu);
+$footerMenuPages = $modules->get('MenuAllocator')->getPageArray('footer');
 
 // Now $topMenuPages and $footerMenuPages contain arrays of pages associated with the respective menus
 
